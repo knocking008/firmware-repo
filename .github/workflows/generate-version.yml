@@ -1,0 +1,40 @@
+# .github/workflows/generate-version.yml
+name: Generate Version JSON
+
+on:
+  push:
+    paths:
+      - 'firmware/**'
+    branches:
+      - main
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        lfs: true  # 确保LFS文件被检出
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+    
+    - name: Generate version JSON
+      run: |
+        python generate_version_json.py
+    
+    - name: Commit and push if changed
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add versions.json latest.json
+        git diff --staged --quiet || git commit -m "Auto-update version JSON files"
+        git push
