@@ -1,5 +1,5 @@
 {
-  "last_update": "2026-06-12T14:43:18.979552",
+  "last_update": "2026-06-12T11:56:31.716304",
   "total_versions": 1,
   "versions": [
     {
@@ -9,7 +9,7 @@
       "size_mb": 4.74,
       "sha256": "0f433b736a6c85ba07f6289a0af8f4b00919e1b2cdff1d6d40a2a4d00156748b",
       "download_url": "https://raw.githubusercontent.com/knocking008/firmware-repo/main/firmware/accelaser-hd1-firmware-0.34.6",
-      "release_date": "2026-06-12T14:29:56.942082",
+      "release_date": "2026-06-12T11:56:29.223803",
       "changelog": "https://github.com/knocking008/firmware-repo/releases/tag/v0.34.6"
     }
   ],
@@ -20,7 +20,7 @@
     "size_mb": 4.74,
     "sha256": "0f433b736a6c85ba07f6289a0af8f4b00919e1b2cdff1d6d40a2a4d00156748b",
     "download_url": "https://raw.githubusercontent.com/knocking008/firmware-repo/main/firmware/accelaser-hd1-firmware-0.34.6",
-    "release_date": "2026-06-12T14:29:56.942082",
+    "release_date": "2026-06-12T11:56:29.223803",
     "changelog": "https://github.com/knocking008/firmware-repo/releases/tag/v0.34.6"
   }
 }
