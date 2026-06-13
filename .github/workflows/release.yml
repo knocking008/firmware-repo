@@ -129,23 +129,24 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Generate latest.json
+    - name: Generate and push latest.json
       env:
         GH_TOKEN: ${{ github.token }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_REPOSITORY: ${{ github.repository }}
       run: |
-        python generate_from_releases.py
-    
-    - name: Commit and push latest.json
-      run: |
         git config user.name "GitHub Action"
         git config user.email "action@github.com"
-        # Commit changes on detached HEAD first
-        git add latest.json changelogs/ || true
-        git commit -m "Update version info" || exit 0
-        # Fetch latest main and rebase our commit onto it
+        # Fetch and checkout main branch (avoids detached HEAD rebase conflicts)
         git fetch origin main
-        git rebase origin/main
-        # Push to main
-        git push origin HEAD:main
+        git checkout main
+        # Generate latest.json on main branch
+        python generate_from_releases.py
+        # Stage and commit
+        git add latest.json changelogs/ || true
+        if git diff --cached --quiet; then
+          echo "No changes to commit"
+          exit 0
+        fi
+        git commit -m "Update version info for ${{ steps.get_version.outputs.tag }}"
+        git push origin main
