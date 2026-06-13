@@ -2,8 +2,9 @@
 name: Update Version JSON
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
