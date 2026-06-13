@@ -1,5 +1,19 @@
 {
-  "last_update": "2026-06-13T10:34:52.131531",
-  "latest_version": null,
-  "firmware_info": null
+  "last_update": "2026-06-13T10:46:58.740043",
+  "latest_version": "0.34.6",
+  "firmware_info": {
+    "version": "0.34.6",
+    "download_url": null,
+    "size_mb": null,
+    "release_date": "2026-06-13T10:05:07Z",
+    "changelog": {
+      "summary": "常规改动",
+      "changes": [
+        "修复测距传感器串口导致的 Crash",
+        "修复 IR/MOPA/传感器报错导致的 Crash",
+        "修复 UV Map Flash 失败",
+        "修改 AF_SWITCH 命令"
+      ]
+    }
+  }
 }
