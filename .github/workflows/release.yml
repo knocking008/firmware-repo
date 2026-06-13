@@ -1,0 +1,130 @@
+# .github/workflows/release.yml
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Get version from tag
+      id: get_version
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/v}
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Find changelog file
+      id: find_changelog
+      run: |
+        CHANGELOG_FILE="changelogs/v${{ steps.get_version.outputs.version }}.json"
+        if [ -f "$CHANGELOG_FILE" ]; then
+          echo "changelog_file=$CHANGELOG_FILE" >> $GITHUB_OUTPUT
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "⚠️ Warning: Changelog file not found: $CHANGELOG_FILE"
+        fi
+    
+    - name: Format changelog for release body
+      id: format_changelog
+      if: steps.find_changelog.outputs.exists == 'true'
+      run: |
+        # 读取JSON并格式化为Markdown
+        python3 << 'EOF'
+        import json
+        
+        with open('${{ steps.find_changelog.outputs.changelog_file }}', 'r', encoding='utf-8') as f:
+            changelog = json.load(f)
+        
+        markdown = []
+        markdown.append(f"## {changelog['summary']}\n")
+        
+        if changelog.get('breaking_changes'):
+            markdown.append("### ⚠️ Breaking Changes\n")
+            markdown.append("此版本包含破坏性变更，请仔细阅读更新说明。\n")
+        
+        markdown.append("### 📝 更新内容\n")
+        for change in changelog['changes']:
+            markdown.append(f"- {change}")
+        
+        if changelog.get('notes'):
+            markdown.append(f"\n### 📌 说明\n{changelog['notes']}")
+        
+        markdown.append(f"\n---\n*Release type: {changelog.get('type', 'patch')}*")
+        
+        result = '\n'.join(markdown)
+        
+        # 保存到文件
+        with open('release_body.md', 'w', encoding='utf-8') as f:
+            f.write(result)
+        
+        # 同时也输出到GitHub Actions
+        with open('release_body.md', 'r', encoding='utf-8') as f:
+            print(f"body<<EOF")
+            print(f.read())
+            print("EOF")
+        EOF
+        
+        echo "body_file=release_body.md" >> $GITHUB_OUTPUT
+    
+    - name: Generate changelog from git (fallback)
+      if: steps.find_changelog.outputs.exists == 'false'
+      run: |
+        PREV_TAG=$(git describe --tags --abbrev=0 ${{ steps.get_version.outputs.tag }}^ 2>/dev/null || echo "")
+        if [ -n "$PREV_TAG" ]; then
+          CHANGELOG=$(git log $PREV_TAG..HEAD --oneline --pretty=format:"- %s")
+        else
+          CHANGELOG=$(git log --oneline --pretty=format:"- %s")
+        fi
+        
+        cat > release_body.md << EOF
+        ## 更新内容
+        
+        $CHANGELOG
+        
+        ---
+        *自动生成的更新日志，建议后续使用 changelogs/v${{ steps.get_version.outputs.version }}.json 文件*
+        EOF
+    
+    - name: Find firmware file
+      id: find_firmware
+      run: |
+        FIRMWARE_FILE=$(find firmware -name "*${{ steps.get_version.outputs.version }}*" | head -1)
+        if [ -z "$FIRMWARE_FILE" ]; then
+          echo "⚠️ No firmware file found for version ${{ steps.get_version.outputs.version }}"
+          echo "firmware_exists=false" >> $GITHUB_OUTPUT
+        else
+          echo "firmware_file=$FIRMWARE_FILE" >> $GITHUB_OUTPUT
+          echo "filename=$(basename $FIRMWARE_FILE)" >> $GITHUB_OUTPUT
+          echo "firmware_exists=true" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.get_version.outputs.tag }}
+        name: Version ${{ steps.get_version.outputs.version }}
+        body_path: ${{ steps.format_changelog.outputs.body_file || 'release_body.md' }}
+        files: ${{ steps.find_firmware.outputs.firmware_file }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

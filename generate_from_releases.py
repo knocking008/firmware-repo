@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+# generate_from_releases.py
+# 这个脚本在CI中运行，通过GitHub CLI获取Release信息
+
+import json
+import subprocess
+import os
+from datetime import datetime
+from pathlib import Path
+
+def get_releases_from_gh_cli():
+    """使用GitHub CLI获取所有Releases"""
+    try:
+        # 获取所有releases的JSON输出
+        result = subprocess.run(
+            ['gh', 'release', 'list', '--limit', '100', '--json', 'tagName,createdAt,isPrerelease,url,assets'],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        releases_data = json.loads(result.stdout)
+        
+        # 获取每个release的详细信息（包括body）
+        releases = []
+        for release in releases_data:
+            # 获取单个release的详细信息
+            detail = subprocess.run(
+                ['gh', 'release', 'view', release['tagName'], '--json', 'body'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            release_detail = json.loads(detail.stdout)
+            
+            releases.append({
+                'tag_name': release['tagName'],
+                'published_at': release['createdAt'],
+                'prerelease': release['isPrerelease'],
+                'body': release_detail.get('body', ''),
+                'assets': release['assets'],
+                'html_url': release['url']
+            })
+        
+        return releases
+    except subprocess.CalledProcessError as e:
+        print(f"Error calling gh CLI: {e}")
+        return []
+
+def load_local_changelog(version):
+    """加载本地changelog文件"""
+    changelog_path = Path(f"changelogs/v{version}.json")
+    if changelog_path.exists():
+        with open(changelog_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return None
+
+def generate_version_json():
+    """生成versions.json"""
+    # 优先使用本地changelog文件，否则从release body解析
+    releases = get_releases_from_gh_cli()
+    
+    versions = []
+    for release in releases:
+        if release['prerelease']:
+            continue
+            
+        version = release['tag_name'].replace('v', '')
+        
+        # 尝试加载本地changelog
+        changelog_data = load_local_changelog(version)
+        
+        if not changelog_data:
+            # 从release body解析changelog
+            body = release.get('body', '')
+            changelog_data = {
+                'summary': '常规更新',
+                'changes': parse_changes_from_body(body),
+                'type': 'patch',
+                'breaking_changes': False,
+                'notes': ''
+            }
+        
+        # 获取固件附件
+        firmware_assets = []
+        for asset in release.get('assets', []):
+            if asset['name'].endswith(('.bin', '.hex', '.fw', '.img')) or '.' not in asset['name'].rsplit('/', 1)[-1]:
+                firmware_assets.append({
+                    'name': asset['name'],
+                    'size': asset['size'],
+                    'size_mb': round(asset['size'] / (1024 * 1024), 2),
+                    'download_url': asset['url'],
+                    'browser_download_url': asset.get('browser_download_url', asset['url'])
+                })
+        
+        version_info = {
+            'version': version,
+            'tag_name': release['tag_name'],
+            'release_date': release['published_at'],
+            'changelog': changelog_data,
+            'release_url': release['html_url'],
+            'assets': firmware_assets
+        }
+        
+        if firmware_assets:
+            version_info['download_url'] = firmware_assets[0]['browser_download_url']
+            version_info['size_mb'] = firmware_assets[0]['size_mb']
+        
+        versions.append(version_info)
+    
+    # 按版本排序
+    versions.sort(key=lambda x: [int(i) for i in x['version'].split('.')], reverse=True)
+    
+    # 写入文件
+    version_data = {
+        'last_update': datetime.now().isoformat(),
+        'total_versions': len(versions),
+        'versions': versions,
+        'latest': versions[0] if versions else None
+    }
+    
+    with open('versions.json', 'w', encoding='utf-8') as f:
+        json.dump(version_data, f, indent=2, ensure_ascii=False)
+    
+    # 生成latest.json
+    if versions:
+        latest_data = {
+            'last_update': datetime.now().isoformat(),
+            'latest_version': versions[0]['version'],
+            'firmware_info': {
+                'version': versions[0]['version'],
+                'download_url': versions[0].get('download_url'),
+                'size_mb': versions[0].get('size_mb'),
+                'release_date': versions[0]['release_date'],
+                'changelog': versions[0]['changelog']
+            }
+        }
+    else:
+        latest_data = {
+            'last_update': datetime.now().isoformat(),
+            'latest_version': None,
+            'firmware_info': None
+        }
+    
+    with open('latest.json', 'w', encoding='utf-8') as f:
+        json.dump(latest_data, f, indent=2, ensure_ascii=False)
+    
+    print(f"✅ Generated versions.json with {len(versions)} versions")
+
+def parse_changes_from_body(body):
+    """从Release body解析变更列表"""
+    changes = []
+    if not body:
+        return changes
+    
+    for line in body.split('\n'):
+        line = line.strip()
+        if line.startswith('- '):
+            changes.append(line[2:])
+        elif line.startswith('* '):
+            changes.append(line[2:])
+    
+    return changes if changes else ['请查看Release页面获取详细更新内容']
+
+if __name__ == '__main__':
+    generate_version_json()

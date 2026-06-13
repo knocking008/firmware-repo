@@ -1,0 +1,11 @@
+{
+  "summary": "常规改动",
+  "changes": [
+    "增加机器 Device ID",
+    "修改机器信息 HTTP API，获取 Device ID，机器名等",
+    "新增机器信息 HTTP API，支持改名",
+    "新增传感器状态 HTTP API，获取温度传感器状态",
+    "新增 AF_SET 命令，用于调节叉臂的参数",
+    "修复测距传感器异常导致的 Crash"
+  ]
+}

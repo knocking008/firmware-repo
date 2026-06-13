@@ -1,0 +1,9 @@
+{
+  "summary": "常规改动",
+  "changes": [
+    "修复测距传感器串口导致的 Crash",
+    "修复 IR/MOPA/传感器报错导致的 Crash",
+    "修复 UV Map Flash 失败",
+    "修改 AF_SWITCH 命令"
+  ]
+}
