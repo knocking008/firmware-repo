@@ -140,10 +140,11 @@ jobs:
       run: |
         git config user.name "GitHub Action"
         git config user.email "action@github.com"
-        # Switch to main branch from detached HEAD (tag-triggered workflow)
-        git fetch origin main
-        git checkout main
-        git pull --rebase origin main
+        # Commit changes on detached HEAD first
         git add latest.json changelogs/ || true
         git commit -m "Update version info" || exit 0
-        git push origin main
+        # Fetch latest main and rebase our commit onto it
+        git fetch origin main
+        git rebase origin/main
+        # Push to main
+        git push origin HEAD:main
