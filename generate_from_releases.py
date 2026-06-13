@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # generate_from_releases.py
-# 这个脚本在CI中运行，通过GitHub CLI获取Release信息
+# 这个脚本在CI中运行，通过GitHub CLI获取Release信息，生成latest.json
 
 import json
 import subprocess
@@ -54,9 +54,8 @@ def load_local_changelog(version):
             return json.load(f)
     return None
 
-def generate_version_json():
-    """生成versions.json"""
-    # 优先使用本地changelog文件，否则从release body解析
+def generate_latest_json():
+    """生成latest.json（仅最新版本）"""
     releases = get_releases_from_gh_cli()
     
     versions = []
@@ -107,19 +106,8 @@ def generate_version_json():
         
         versions.append(version_info)
     
-    # 按版本排序
+    # 按版本排序，取最新
     versions.sort(key=lambda x: [int(i) for i in x['version'].split('.')], reverse=True)
-    
-    # 写入文件
-    version_data = {
-        'last_update': datetime.now().isoformat(),
-        'total_versions': len(versions),
-        'versions': versions,
-        'latest': versions[0] if versions else None
-    }
-    
-    with open('versions.json', 'w', encoding='utf-8') as f:
-        json.dump(version_data, f, indent=2, ensure_ascii=False)
     
     # 生成latest.json
     if versions:
@@ -144,7 +132,7 @@ def generate_version_json():
     with open('latest.json', 'w', encoding='utf-8') as f:
         json.dump(latest_data, f, indent=2, ensure_ascii=False)
     
-    print(f"✅ Generated versions.json with {len(versions)} versions")
+    print(f"✅ Generated latest.json (latest version: {versions[0]['version'] if versions else 'N/A'})")
 
 def parse_changes_from_body(body):
     """从Release body解析变更列表"""
@@ -162,4 +150,4 @@ def parse_changes_from_body(body):
     return changes if changes else ['请查看Release页面获取详细更新内容']
 
 if __name__ == '__main__':
-    generate_version_json()
+    generate_latest_json()
