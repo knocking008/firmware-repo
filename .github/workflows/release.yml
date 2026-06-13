@@ -128,3 +128,18 @@ jobs:
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Generate latest.json
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        python generate_from_releases.py
+    
+    - name: Commit and push latest.json
+      run: |
+        git config user.name "GitHub Action"
+        git config user.email "action@github.com"
+        git add latest.json changelogs/ || true
+        git commit -m "Update version info" || exit 0
+        git push origin HEAD:main
